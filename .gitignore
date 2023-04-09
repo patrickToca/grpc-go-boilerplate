@@ -1,0 +1,7 @@
+# System and temporary local files
+.idea/
+.vscode/
+.DS_Store
+
+# Ignore generated protobuf code
+gen/
