@@ -19,7 +19,9 @@ func NewGreeter() *Greeter {
 }
 
 func (g *Greeter) Hello(ctx context.Context, empty *emptypb.Empty) (*hellopbv1.HelloResponse, error) {
-	h := hellopbv1.HelloResponse{Hello: "Hello world!"}
+	h := &hellopbv1.HelloResponse{
+		Hello: "Hello world!",
+	}
 	log.Info().Msg("replying to the greeting")
-	return &h, nil
+	return h, nil
 }

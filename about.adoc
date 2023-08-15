@@ -1,0 +1,124 @@
+= gRPC Go Example and Boilerplate
+Firstname Lastname <author@asciidoctor.org>
+3.0, August 12, 2022: AsciiDoc article template
+:toc:
+:icons: font
+
+<<<
+
+I put together a simple example and all the boilerplate needed to get started with a gRPC service in Go. The following Git repository includes some of what I consider best practices, useful middleware, observability, and other features.
+
+== Git Repository: grpc-go-boilerplate
+
+The following Git repository includes a “Hello world” gRPC service with multiple features and best practices. Please feel free to clone, try, and modify it per your needs.
+
+== Features
+I have included multiple features in this project, some of which took me considerable time to figure out and implement. Going forward, starting new gRPC services should be much quicker given this boilerplate.
+
+== Example gRPC Service
+The Hello service is quite a simple service which does not take any input, and calling it simply returns a string. The service definitions are inside the proto directory and implementation inside the internal/hello directory.
+
+== Protobuf Compilation
+The compilation of Protobuf is built right into the Go project with buf, so no external dependencies like installing the protoc compiler are needed on the system. Compile the protobuf definitions by either running make generate or go generate ./.... For more information regarding how everything fits together refer to the blog post linked at the end, and the buf documentation.
+
+== Structured Logging & Logging Middleware
+The project leverages zerolog for its logging library. It is my favorite Go logging library and I recommend using it because of its features and performance. When in dev mode the logging is set up to be more human-readable and set to JSON otherwise for production deployments.
+
+== Panic Recovery Interceptor
+Included is a panic recovery interceptor middleware that turns panics into gRPC errors. The recovery interceptor is a middleware that recovers from panics and logs the panic message–the last thing we want is a panic to bring down our entire server.
+
+== Prometheus Interceptor
+To improve observability and metrics included is the Prometheus interceptor middleware that adds gRPC specific metrics. The metrics of Prometheus are available on the http://0.0.0.0:2112/metrics[:2112/metrics] endpoint when the service is running.
+
+== Health Check Service
+An example health check service is provided for health checks, and readiness + liveliness probes if deploying on Kubernetes. The Hello service health service implementation is very basic, and in a real scenario some more logic needs to be implemented depending on your service.
+
+== buf & Plugins Integration
+buf is a very useful tool when working with Protobuf. It helps with things like compilation, linting, breaking change detection, and more. Configuration can be found inside the buf.yaml and buf.gen.yaml files. Refer to their documentation for further details.
+
+== Prometheus Metrics
+Example setup of Prometheus Metrics. Various Prometheus metrics are available on the http://0.0.0.0:2112/metrics[:2112/metrics] endpoint when the service is running.
+
+== Versioned APIs
+It is a good idea to version our APIs to support us going forward with introducing breaking changes. The proto files are structured inside the proto folder as follows: service/vN/file.proto. And the package definition inside the protobuf files: package service.vN;
+
+== Dev Mode Toggle
+Sometimes it is useful to run your service locally during development. This could mean mocking out certain dependencies, services or what not. This can be done by providing a -dev argument when running the service to allow for branching and handling of such cases. Refer to the main function for an example.
+
+== Protobuf & Code Linting
+Go code linting is handled by `golangci-lint` and protobuf linting via the buf tool. Run make lint to run both and see if there are any problems detected with your code or protobuf files.
+
+== Graceful Shutdown
+The service can be stopped by issuing an interrupt (Ctrl+C), after which any additional internal services can be notified (via a shared Context) and are given 5 seconds to perform any clean-up. When either all additional internal services complete their cleanup, 5 seconds pass, or another interrupt is issued, the main service terminates. The time can be configured, and the basic framework can be found inside cmd/grpc-go-boilerplate/main.go.
+
+== Makefile
+The Makefile provides several useful targets for things like compiling our protobuf and running the code/proto lint. Review the file for more details.
+
+== Dockerfile
+The file docker/Dockerfile demonstrates how to build a docker image of our service, including pulling dependencies and compiling our protobuf.
+
+== gRPC Gateway Integration
+gRPC Gateway is a protoc plugin that reads a gRPC service definition and generates a reverse-proxy server which translates a REST-ful JSON API into gRPC.
+
+The `google.api.http` option service annotations inside the `hello.proto` file are used with this plugin. If your project has the need to use such a plugin, it is included in this project, and we will see how to use it in a section below.
+
+== No Generated Code Committed
+It is a preference of mine not to have generated code be committed inside the Git repository. For that reason, any generated code for the project results in the gen directory, and that directory is Git ignored.
+
+== Usage
+
+=== Run Server
+Let’s look at an example of running the service and calling it with a client. Download all project dependencies, compile protobuf, and run:
+
+[source,shell,linenums]
+----
+go mod download all
+make generate # or go generate ./...
+go run cmd/grpc-go-boilerplate/main.go -dev
+
+... INF gRPC server listening on :8080
+... INF metrics available on :2112/metrics
+... INF gRPC Gateway listening on :8081
+----
+
+=== Run Client
+Call our Hello gRPC service:
+
+[source,shell,linenums]
+----
+grpcurl --plaintext localhost:8080 hello.v1.HelloService/Hello
+# returns
+{
+"hello": "Hello world!"
+}
+----
+
+=== Call the service using the gRPC Gateway:
+
+[source,shell,linenums]
+----
+curl localhost:8081/v1/hello
+# returns
+{"hello":"Hello world!"}
+----
+
+== Calling the health service using grpc-health-probe:
+
+grpc-health-probe -addr ":8080" -service="hello.v1.HelloService"
+status: SERVING
+
+grpc-health-probe -addr ":8080"
+status: SERVING
+
+== Using `grpcui`
+
+[source,shell]
+----
+grpcui -plaintext 0.0.0.0:8080
+#returns
+gRPC Web UI available at http://127.0.0.1:56746/
+# and open a html page
+----
+
+== Acknowledgements
+Go Protobuf Plugin Versioning

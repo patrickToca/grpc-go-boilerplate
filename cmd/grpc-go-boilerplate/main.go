@@ -4,22 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	promgrpc "github.com/grpc-ecosystem/go-grpc-middleware/providers/openmetrics/v2"
-	grpczerolog "github.com/grpc-ecosystem/go-grpc-middleware/providers/zerolog/v2"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
 	hellopbv1 "grpc-go-boilerplate/gen/proto/hello/v1"
 	"grpc-go-boilerplate/internal/hello"
 	"net"
@@ -29,6 +13,22 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	//promgrpc "github.com/grpc-ecosystem/go-grpc-middleware/providers/openmetrics/v2"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	//"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
 )
 
 const defaultPort = "8080"
@@ -64,34 +64,40 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to create listener")
 		}
+		//opts := []logging.Option{
+		//	logging.WithDecider(func(fullMethodName string, err error) logging.Decision {
+		//		// Don't log gRPC calls if it was a call to healthcheck and no error was raised
+		//		if fullMethodName == "/grpc.health.v1.Health/Check" {
+		//			return logging.NoLogCall
+		//		}
+		//		// By default, log all calls
+		//		return logging.LogStartAndFinishCall
+		//	}),
+		//}
+		logger := zerolog.New(os.Stderr)
+
 		opts := []logging.Option{
-			logging.WithDecider(func(fullMethodName string, err error) logging.Decision {
-				// Don't log gRPC calls if it was a call to healthcheck and no error was raised
-				if fullMethodName == "/grpc.health.v1.Health/Check" {
-					return logging.NoLogCall
-				}
-				// By default, log all calls
-				return logging.LogStartAndFinishCall
-			}),
+			logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
+			// Add any other option (check functions starting with logging.With).
 		}
 
 		// Setup Prometheus metrics
-		promGrpcServerMetrics := promgrpc.NewServerMetrics()
-		err = promGrpcServerMetrics.Register(prometheus.DefaultRegisterer)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to register default prometheus registerer")
-		}
+		//promGrpcServerMetrics := promgrpc.NewServerMetrics()
+		//err = promGrpcServerMetrics.Register(prometheus.DefaultRegisterer)
+		//if err != nil {
+		//	log.Error().Err(err).Msg("failed to register default prometheus registerer")
+		//}
 
 		// Create gRPC server with zerolog, prometheus, and panic recovery middleware
 		srv := grpc.NewServer(
 			grpc.ChainUnaryInterceptor(
-				logging.UnaryServerInterceptor(grpczerolog.InterceptorLogger(log.Logger), opts...),
-				promgrpc.UnaryServerInterceptor(promGrpcServerMetrics),
+				logging.UnaryServerInterceptor(InterceptorLogger(logger), opts...),
+				//promgrpc.UnaryServerInterceptor(promGrpcServerMetrics),
 				recovery.UnaryServerInterceptor(),
 			),
 			grpc.ChainStreamInterceptor(
-				logging.StreamServerInterceptor(grpczerolog.InterceptorLogger(log.Logger), opts...),
-				promgrpc.StreamServerInterceptor(promGrpcServerMetrics),
+				logging.StreamServerInterceptor(InterceptorLogger(logger), opts...),
+				//promgrpc.StreamServerInterceptor(promGrpcServerMetrics),
 				recovery.StreamServerInterceptor(),
 			),
 		)
@@ -101,7 +107,7 @@ func main() {
 		hellopbv1.RegisterHelloServiceServer(srv, greeter)
 
 		// Initialize Prometheus and register reflection
-		promGrpcServerMetrics.InitializeMetrics(srv)
+		//promGrpcServerMetrics.InitializeMetrics(srv)
 		reflection.Register(srv)
 
 		// Health and reflection service
@@ -161,4 +167,23 @@ func main() {
 	// Handle cleanup here if any
 
 	log.Info().Msg("Server exiting")
+}
+
+func InterceptorLogger(l zerolog.Logger) logging.Logger {
+	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
+		l := l.With().Fields(fields).Logger()
+
+		switch lvl {
+		case logging.LevelDebug:
+			l.Debug().Msg(msg)
+		case logging.LevelInfo:
+			l.Info().Msg(msg)
+		case logging.LevelWarn:
+			l.Warn().Msg(msg)
+		case logging.LevelError:
+			l.Error().Msg(msg)
+		default:
+			panic(fmt.Sprintf("unknown level %v", lvl))
+		}
+	})
 }
