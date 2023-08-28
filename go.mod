@@ -5,10 +5,9 @@ go 1.21.0
 require (
 	github.com/bufbuild/buf v1.26.1
 	github.com/go-chi/chi/v5 v5.0.10
-	github.com/grpc-ecosystem/go-grpc-middleware/providers/openmetrics/v2 v2.0.0-rc.3
-	github.com/grpc-ecosystem/go-grpc-middleware/providers/zerolog/v2 v2.0.0-rc.3
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.0-rc.5
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.2
+	github.com/oklog/run v1.0.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/rs/zerolog v1.30.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230814215434-ca7cfce7776a

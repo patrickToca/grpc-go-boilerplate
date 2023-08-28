@@ -23,4 +23,3 @@ plugins:
       - paths=source_relative
   - name: openapiv2
     out: gen/proto
-    path:

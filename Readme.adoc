@@ -1,0 +1,136 @@
+:doctype: book
+:toc: left
+:toc-title: Contents
+:icons: font
+:source-highlighter: coderay
+:pygments-linenums-mode: inline
+:author_name: Patrick Toca
+:author_email: patrick.toca@cbre.com
+:stylesheet: ./asciidoctor.css
+:relfileprefix: ./
+ifdef::env-github,env-browser[:outfilesuffix: .adoc]
+:sectnums:
+:sectnumlevels: 3
+
+
+= gRPC Go Boilerplate
+{author_name}
+v0.0.4, August 16th, 2023: UKP Master Addresses design and construction
+
+'''
+
+Version: {revnumber}
+
+Version Date: {revdate} - created on August 15th, 2023
+
+Version Notes: {revremark}
+
+Author: {author_name}
+
+Email: {author_email}
+
+'''
+
+WARNING: WIP.
+
+<<<
+
+== gRPC Go Boilerplate
+
+A minimal repo containing all the boilerplate for getting started with gRPC in Go.
+
+== Features
+
+* Example gRPC service and implementation
+* Protobuf & gRPC generation
+* Example Middleware
+ ** Logging
+ ** Prometheus
+ ** Panic Recovery
+* Health Check
+* Example gRPC Gateway integration
+* `buf` + plugins integration
+* Structured logging
+* Prometheus Metrics
+* Protobuf and code linting
+* Dev mode toggle for development tasks
+* Graceful shutdown option
+* Makefile with generate, clean, and lint targets
+* Dockerfile
+
+== Usage
+
+`go mod download all` to download all dependencies.
+
+To generate the protobuf and gRPC files run `make generate` or `+go generate ./...+`
+
+To start the server in dev mode run `go run cmd/grpc-go-boilerplate/main.go -dev`
+
+*Example gRPC Client Call*
+
+----
+hello.v1.HelloService@127.0.0.1:8080> call Hello
+{
+  "hello": "Hello world!"
+}
+----
+
+*Example HTTP Client Call*
+
+----
+curl localhost:8081/v1/hello
+{"hello":"Hello world!"}
+----
+
+=== Buf
+
+The Buf CLI is the ultimate tool for modern, fast, and efficient Protobuf API management.
+
+==== Buf cli commands - initialise
+
+Visit the https://buf.build/docs/tutorials/getting-started-with-buf-cli#configure-a-bufgenyaml[buf cli: getting started] page.
+
+Getting started buf commands:
+
+[source,shell]
+----
+buf --version
+# returns: 1.26.1
+
+# buf is configured with a buf.yaml file, create your own with this command:
+buf mod init
+
+# After you run this command, you'll notice a buf.yaml in the current directory.
+# buf assumes there is a buf.yaml in your current directory by default, or uses a default value in lieu of a buf.yaml file. We recommend always having a buf.yaml file at the root of your .proto files hierarchy, as this is how .proto import paths are resolved.
+
+buf build
+# returns: 0
+----
+
+==== Generate code
+
+buf provides a user-friendly experience for generating code locally that's compatible with any reasonable existing usage of protoc, so let's jump in and generate some code.
+
+Previously you created a [.navy .yellow-background]#buf.yaml# in the proto directory this denotes the root of the buf module. A module is a collection of Protobuf files that are configured, built, and versioned as a logical unit. By moving away from individual .proto files, the module simplifies file discovery. Now, we will create a buf.gen.yaml.
+
+The [.navy .yellow-background]#buf.gen.yaml# file controls how the buf generate command executes protoc plugins on a given module. With a buf.gen.yaml, you can configure where each protoc plugin writes its result and specify options for each plugin.
+
+
+
+=== Dependencies
+
+* https://golangci-lint.run/[golangci-lint] - Go code linter
+
+=== Credits
+
+* https://jbrandhorst.com/post/plugin-versioning/[Go Protobuf Plugin Versioning]
+
+== Todo
+
+. Implement actors with run
+. Use golang log/slog instead of zerolog + config. a wrapping logger
+. Implement Swagger server with gin
+. Implement command line for gRPC to run grpcui
+. See to have Prometheus working
+. Implement config using `type Option func(*Config)` and externalise the options into a cue specification
+. REST and gRPC in a single service (TLS) see https://earthly.dev/blog/golang-grpc-gateway/[earthly.dev]
