@@ -107,6 +107,8 @@ buf build
 # returns: 0
 ----
 
+Visit also this Buf page: https://buf.build/docs/ecosystem/cli-overview#buf-cli-commands[cli-overview#buf-cli-commands]
+
 ==== Generate code
 
 buf provides a user-friendly experience for generating code locally that's compatible with any reasonable existing usage of protoc, so let's jump in and generate some code.

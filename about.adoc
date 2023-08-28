@@ -1,10 +1,42 @@
-= gRPC Go Example and Boilerplate
-Firstname Lastname <author@asciidoctor.org>
-3.0, August 12, 2022: AsciiDoc article template
-:toc:
+:doctype: book
+:toc: left
+:toc-title: Contents
 :icons: font
+:source-highlighter: coderay
+:pygments-linenums-mode: inline
+:author_name: Patrick Toca
+:author_email: patrick.toca@cbre.com
+:stylesheet: ./asciidoctor.css
+:relfileprefix: ./
+ifdef::env-github,env-browser[:outfilesuffix: .adoc]
+:sectnums:
+:sectnumlevels: 3
+
+
+= How to use
+{author_name}
+v0.0.4, August 16th, 2023: UKP Master Addresses design and construction
+
+'''
+
+Version: {revnumber}
+
+Version Date: {revdate} - created on August 15th, 2023
+
+Version Notes: {revremark}
+
+Author: {author_name}
+
+Email: {author_email}
+
+'''
+
+WARNING: WIP.
 
 <<<
+
+== gRPC Go Example and Boilerplate
+
 
 I put together a simple example and all the boilerplate needed to get started with a gRPC service in Go. The following Git repository includes some of what I consider best practices, useful middleware, observability, and other features.
 

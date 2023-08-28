@@ -41,7 +41,7 @@ See: https://matthewsetter.com/convert-markdown-to-asciidoc-with-kramdown-asciid
 
 [source,bash]
 ----
-kramdoc --format=GFM --output=Readme.adoc --wrap=ventilate Readme.md
+kramdoc --format=GFM --output=readme.adoc --wrap=ventilate Readme.md
 
 kramdoc --format=GFM --output=postgis_2.0_cheatsheet.adoc --wrap=ventilate postgis_2.md
 ----

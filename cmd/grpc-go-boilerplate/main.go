@@ -40,11 +40,6 @@ var (
 func main() {
 	flag.Parse()
 
-	// The context is used to inform the server it has 5 seconds to finish
-	// the request it is currently handling
-	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	// Setup logger
 	if *dev {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano})
@@ -72,6 +67,7 @@ func main() {
 			defer stop()
 			// Listen for the interrupt signal.
 			<-ctx.Done()
+
 			// Restore default behavior on the interrupt signal and notify user of shutdown.
 			stop()
 			return nil
