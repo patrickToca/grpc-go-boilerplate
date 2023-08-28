@@ -40,6 +40,11 @@ var (
 func main() {
 	flag.Parse()
 
+	// The context is used to inform the server it has 5 seconds to finish
+	// the request it is currently handling
+	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	// Setup logger
 	if *dev {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano})
@@ -62,21 +67,17 @@ func main() {
 	var logger zerolog.Logger
 
 	{
-		// This function just sits and waits for ctrl-C.
-		cancel := make(chan struct{})
-
 		execute := func() error {
-			c := make(chan os.Signal, 1)
-			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-			select {
-			case sig := <-c:
-				return fmt.Errorf("received signal %s", sig)
-			case <-cancel:
-				return nil
-			}
+			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+			defer stop()
+			// Listen for the interrupt signal.
+			<-ctx.Done()
+			// Restore default behavior on the interrupt signal and notify user of shutdown.
+			stop()
+			return nil
 		}
 		interrupt := func(error) {
-			close(cancel)
+			log.Info().Msg("shutting down gracefully, press Ctrl+C again to force")
 		}
 		g.Add(execute, interrupt)
 	} // Control-C watcher
@@ -167,12 +168,6 @@ func main() {
 	if err := g.Run(); err != nil {
 		log.Fatal().Err(err).Msg("g.Run()_failed")
 	}
-
-	// Handle cleanup here if any
-	// The context is used to inform the server it has 5 seconds to finish
-	// the request it is currently handling
-	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	log.Info().Msg("Server exiting")
 }
