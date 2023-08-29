@@ -4,12 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"google.golang.org/grpc/credentials/insecure"
+	slog "log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	goruntime "runtime"
 	"syscall"
 
 	"time"
@@ -17,13 +18,14 @@ import (
 	hellopbv1 "grpc-go-boilerplate/gen/proto/hello/v1"
 	"grpc-go-boilerplate/internal/hello"
 
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/grpc/credentials/insecure"
+
 	//promgrpc "github.com/grpc-ecosystem/go-grpc-middleware/providers/openmetrics/v2"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/oklog/run"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -37,15 +39,62 @@ var (
 	dev = flag.Bool("dev", false, "Enable development mode")
 )
 
+// Infof is an example of a user-defined logging function that wraps slog.
+// The log record contains the scd source position of the caller of Infof.
+func Infof(logger *slog.Logger, format string, args ...any) {
+	if !logger.Enabled(context.Background(), slog.LevelInfo) {
+		return
+	}
+	var pcs [1]uintptr
+	goruntime.Callers(2, pcs[:]) // skip [Callers, Infof]
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, fmt.Sprintf(format, args...), pcs[0])
+	_ = logger.Handler().Handle(context.Background(), r)
+}
+
+// Errorf is an example of a user-defined logging function that wraps slog.
+// The log record contains the scd source position of the caller of Errorf.
+func Errorf(logger *slog.Logger, format string, args ...any) {
+	if !logger.Enabled(context.Background(), slog.LevelInfo) {
+		return
+	}
+	var pcs [1]uintptr
+	goruntime.Callers(2, pcs[:]) // skip [Callers, Infof]
+	r := slog.NewRecord(time.Now(), slog.LevelError, fmt.Sprintf(format, args...), pcs[0])
+	_ = logger.Handler().Handle(context.Background(), r)
+}
+
 func main() {
 	flag.Parse()
 
+	replacedev := func(groups []string, a slog.Attr) slog.Attr {
+		// Remove time.
+		if a.Key == slog.TimeKey && len(groups) == 0 {
+			return slog.Attr{}
+		}
+		// Remove the directory from the source's filename.
+		if a.Key == slog.SourceKey {
+			source := a.Value.Any().(*slog.Source)
+			source.File = filepath.Base(source.File)
+		}
+		return a
+	}
+
+	replaceprod := func(groups []string, a slog.Attr) slog.Attr {
+		// Remove the directory from the source's filename.
+		if a.Key == slog.SourceKey {
+			source := a.Value.Any().(*slog.Source)
+			source.File = filepath.Base(source.File)
+		}
+		return a
+	}
+
+	var gologger *slog.Logger
+
 	// Setup logger
 	if *dev {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano})
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		gologger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replacedev}))
 	} else {
-		zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
+		gologger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replaceprod}))
 	}
 
 	port := defaultPort
@@ -59,7 +108,7 @@ func main() {
 	// and an interrupt function, which, when invoked, should cause the execute function to return.
 	var g run.Group
 	var srv *grpc.Server
-	var logger zerolog.Logger
+	//var logger zerolog.Logger
 
 	{
 		execute := func() error {
@@ -73,7 +122,8 @@ func main() {
 			return nil
 		}
 		interrupt := func(error) {
-			log.Info().Msg("shutting down gracefully, press Ctrl+C again to force")
+			//log.Info().Msg("shutting down gracefully, press Ctrl+C again to force")
+			Infof(gologger, "message, %s", "shutting down gracefully, press Ctrl+C again to force")
 
 			// The context is used to inform the server it has 5 seconds to finish
 			// the request it is currently handling
@@ -82,7 +132,8 @@ func main() {
 
 			// Handle cleanup here if any
 
-			log.Info().Msg("Server exiting")
+			//log.Info().Msg("Server exiting")
+			Infof(gologger, "message, %s", "Server exiting")
 		}
 		g.Add(execute, interrupt)
 	} // Control-C watcher
@@ -90,32 +141,34 @@ func main() {
 		execute := func() error {
 			lis, err := net.Listen("tcp", ":"+port)
 			if err != nil {
-				log.Fatal().Err(err).Msg("failed to create listener")
+				//log.Fatal().Err(err).Msg("failed to create listener")
+				Errorf(gologger, "message, %s", "failed to create listener")
+				os.Exit(1)
 			}
-			//opts := []logging.Option{
-			//	logging.WithDecider(func(fullMethodName string, err error) logging.Decision {
-			//		// Don't log gRPC calls if it was a call to healthcheck and no error was raised
-			//		if fullMethodName == "/grpc.health.v1.Health/Check" {
-			//			return logging.NoLogCall
-			//		}
-			//		// By default, log all calls
-			//		return logging.LogStartAndFinishCall
-			//	}),
-			//}
-			logger = zerolog.New(os.Stderr)
-
 			opts := []logging.Option{
-				logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
-				// Add any other option (check functions starting with logging.With).
+				logging.WithDecider(func(fullMethodName string, err error) logging.Decision {
+					// Don't log gRPC calls if it was a call to healthcheck and no error was raised
+					if fullMethodName == "/grpc.health.v1.Health/Check" {
+						return logging.NoLogCall
+					}
+					// By default, log all calls
+					return logging.LogStartAndFinishCall
+				}),
 			}
+			//logger = zerolog.New(os.Stderr)
+
+			//opts := []logging.Option{
+			//	logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
+			//	// Add any other option (check functions starting with logging.With).
+			//}
 			// Create gRPC server with zerolog, prometheus, and panic recovery middleware
 			srv = grpc.NewServer(
 				grpc.ChainUnaryInterceptor(
-					logging.UnaryServerInterceptor(InterceptorLogger(logger), opts...),
+					logging.UnaryServerInterceptor(InterceptorLogger(gologger), opts...),
 					recovery.UnaryServerInterceptor(),
 				),
 				grpc.ChainStreamInterceptor(
-					logging.StreamServerInterceptor(InterceptorLogger(logger), opts...),
+					logging.StreamServerInterceptor(InterceptorLogger(gologger), opts...),
 					recovery.StreamServerInterceptor(),
 				),
 			)
@@ -132,16 +185,20 @@ func main() {
 			healthServer.SetServingStatus(hellopbv1.HelloService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 			grpc_health_v1.RegisterHealthServer(srv, healthServer)
 
-			log.Info().Msgf("gRPC server listening on :%s", port)
+			//log.Info().Msgf("gRPC server listening on :%s", port)
+			Infof(gologger, "gRPC server listening on :%s", port)
 			if err := srv.Serve(lis); err != nil {
-				log.Fatal().Err(err).Msg("failed to start gRPC server")
+				//log.Fatal().Err(err).Msg("failed to start gRPC server")
+				Errorf(gologger, "message, %s", "failed to start gRPC server")
+				os.Exit(1)
 			}
 
 			return srv.Serve(lis)
 		}
 
 		interrupt := func(error) {
-			log.Info().Msgf("gRPC server gracefulStop() started")
+			//log.Info().Msgf("gRPC server gracefulStop() started")
+			Infof(gologger, "message :%s", "gRPC server gracefulStop() started")
 			srv.GracefulStop()
 		}
 
@@ -154,16 +211,22 @@ func main() {
 			grpcEndpoint := fmt.Sprintf("localhost:%s", port)
 			err := hellopbv1.RegisterHelloServiceHandlerFromEndpoint(context.Background(), mux, grpcEndpoint, opts)
 			if err != nil {
-				log.Fatal().Err(err).Msg("failed to connect to register gRPC Gateway Summary service")
+				//log.Fatal().Err(err).Msg("failed to connect to register gRPC Gateway Summary service")
+				Errorf(gologger, "message, %s", "failed to connect to register gRPC Gateway Summary service")
+				os.Exit(1)
 			}
-			log.Info().Msgf("gRPC Gateway listening on :8081")
+			//log.Info().Msgf("gRPC Gateway listening on :8081")
+			Infof(gologger, "message :%s", "gRPC Gateway listening on :8081")
 			if err := http.ListenAndServe(":8081", mux); err != nil {
-				log.Fatal().Err(err).Msg("failed to start gRPC gateway")
+				//log.Fatal().Err(err).Msg("failed to start gRPC gateway")
+				Errorf(gologger, "message, %s", "failed to start gRPC gateway")
+				os.Exit(1)
 			}
 			return nil
 		}
 		interrupt := func(error) {
-			log.Info().Msgf("gRPC Gateway gracefulStop() started")
+			//log.Info().Msgf("gRPC Gateway gracefulStop() started")
+			Infof(gologger, "message :%s", "gRPC Gateway gracefulStop() started")
 			srv.GracefulStop()
 		}
 		g.Add(execute, interrupt)
@@ -171,25 +234,30 @@ func main() {
 
 	// Starting the actors
 	if err := g.Run(); err != nil {
-		log.Fatal().Err(err).Msg("g.Run()_failed")
+		//log.Fatal().Err(err).Msg("g.Run()_failed")
+		Errorf(gologger, "message, %s", "g.Run()_failed")
+		os.Exit(1)
 	}
 
-	log.Info().Msg("Server exiting")
+	//log.Info().Msg("Server exiting")
+	Infof(gologger, "message :%s", "Server exiting")
 }
 
-func InterceptorLogger(l zerolog.Logger) logging.Logger {
+func InterceptorLogger(l *slog.Logger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
-		l := l.With().Fields(fields).Logger()
+		//l := l.With().Fields(fields).Logger()
 
 		switch lvl {
 		case logging.LevelDebug:
-			l.Debug().Msg(msg)
+			//l.Debug().Msg(msg)
 		case logging.LevelInfo:
-			l.Info().Msg(msg)
+			//l.Info().Msg(msg)
+			Infof(l, "message, %s", msg)
 		case logging.LevelWarn:
-			l.Warn().Msg(msg)
+			//l.Warn().Msg(msg)
 		case logging.LevelError:
-			l.Error().Msg(msg)
+			//l.Error().Msg(msg)
+			Errorf(l, "message, %s", msg)
 		default:
 			panic(fmt.Sprintf("unknown level %v", lvl))
 		}
