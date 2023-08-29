@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	//"sync"
 	"syscall"
+
 	"time"
 
 	hellopbv1 "grpc-go-boilerplate/gen/proto/hello/v1"
@@ -132,7 +132,7 @@ func main() {
 		}
 
 		interrupt := func(error) {
-			log.Info().Msgf("gRPC gracefulStop() started")
+			log.Info().Msgf("gRPC server gracefulStop() started")
 			srv.GracefulStop()
 		}
 
@@ -154,7 +154,7 @@ func main() {
 			return nil
 		}
 		interrupt := func(error) {
-			log.Info().Msgf("gRPC gracefulStop() started")
+			log.Info().Msgf("gRPC Gateway gracefulStop() started")
 			srv.GracefulStop()
 		}
 		g.Add(execute, interrupt)

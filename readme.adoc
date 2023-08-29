@@ -129,10 +129,11 @@ The [.navy .yellow-background]#buf.gen.yaml# file controls how the buf generate 
 
 == Todo
 
-. Implement actors with run
+. Implement actors with run - DONE
+. Implement command line for gRPC to run grpcui - DONE
+
 . Use golang log/slog instead of zerolog + config. a wrapping logger
 . Implement Swagger server with gin
-. Implement command line for gRPC to run grpcui
 . See to have Prometheus working
 . Implement config using `type Option func(*Config)` and externalise the options into a cue specification
 . REST and gRPC in a single service (TLS) see https://earthly.dev/blog/golang-grpc-gateway/[earthly.dev]
