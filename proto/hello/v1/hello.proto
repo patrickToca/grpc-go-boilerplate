@@ -15,4 +15,12 @@ service HelloService {
       get: "/v1/hello"
     };
   }
+  rpc GetAddress(fff) returns (yyy) {
+    option (google.api.http) = {
+      get: "/v1/getABPaddress"
+    };
+  }
+
+
+
 }
