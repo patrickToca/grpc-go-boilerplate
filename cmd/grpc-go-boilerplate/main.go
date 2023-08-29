@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	goruntime "runtime"
 	"syscall"
-
 	"time"
 
 	hellopbv1 "grpc-go-boilerplate/gen/proto/hello/v1"
@@ -108,7 +107,6 @@ func main() {
 	// and an interrupt function, which, when invoked, should cause the execute function to return.
 	var g run.Group
 	var srv *grpc.Server
-	//var logger zerolog.Logger
 
 	{
 		execute := func() error {
@@ -122,7 +120,6 @@ func main() {
 			return nil
 		}
 		interrupt := func(error) {
-			//log.Info().Msg("shutting down gracefully, press Ctrl+C again to force")
 			Infof(gologger, "message, %s", "shutting down gracefully, press Ctrl+C again to force")
 
 			// The context is used to inform the server it has 5 seconds to finish
@@ -132,7 +129,6 @@ func main() {
 
 			// Handle cleanup here if any
 
-			//log.Info().Msg("Server exiting")
 			Infof(gologger, "message, %s", "Server exiting")
 		}
 		g.Add(execute, interrupt)
@@ -141,27 +137,15 @@ func main() {
 		execute := func() error {
 			lis, err := net.Listen("tcp", ":"+port)
 			if err != nil {
-				//log.Fatal().Err(err).Msg("failed to create listener")
 				Errorf(gologger, "message, %s", "failed to create listener")
 				os.Exit(1)
 			}
-			opts := []logging.Option{
-				logging.WithDecider(func(fullMethodName string, err error) logging.Decision {
-					// Don't log gRPC calls if it was a call to healthcheck and no error was raised
-					if fullMethodName == "/grpc.health.v1.Health/Check" {
-						return logging.NoLogCall
-					}
-					// By default, log all calls
-					return logging.LogStartAndFinishCall
-				}),
-			}
-			//logger = zerolog.New(os.Stderr)
 
-			//opts := []logging.Option{
-			//	logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
-			//	// Add any other option (check functions starting with logging.With).
-			//}
-			// Create gRPC server with zerolog, prometheus, and panic recovery middleware
+			opts := []logging.Option{
+				logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
+				// Add any other option (check functions starting with logging.With).
+			}
+			// Create gRPC server with slog, prometheus, and panic recovery middleware
 			srv = grpc.NewServer(
 				grpc.ChainUnaryInterceptor(
 					logging.UnaryServerInterceptor(InterceptorLogger(gologger), opts...),
