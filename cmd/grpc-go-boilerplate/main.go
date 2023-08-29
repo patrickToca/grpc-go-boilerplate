@@ -4,7 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	slog "log/slog"
+	"google.golang.org/grpc/reflection"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -29,7 +30,6 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
 )
 
 const defaultPort = "8080"
@@ -161,18 +161,15 @@ func main() {
 			greeter := hello.NewGreeter()
 			hellopbv1.RegisterHelloServiceServer(srv, greeter)
 
-			reflection.Register(srv)
-
 			// Health and reflection service
 			healthServer := health.NewServer()
 			healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 			healthServer.SetServingStatus(hellopbv1.HelloService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 			grpc_health_v1.RegisterHealthServer(srv, healthServer)
+			reflection.Register(srv)
 
-			//log.Info().Msgf("gRPC server listening on :%s", port)
 			Infof(gologger, "gRPC server listening on :%s", port)
 			if err := srv.Serve(lis); err != nil {
-				//log.Fatal().Err(err).Msg("failed to start gRPC server")
 				Errorf(gologger, "message, %s", "failed to start gRPC server")
 				os.Exit(1)
 			}
@@ -181,7 +178,6 @@ func main() {
 		}
 
 		interrupt := func(error) {
-			//log.Info().Msgf("gRPC server gracefulStop() started")
 			Infof(gologger, "message :%s", "gRPC server gracefulStop() started")
 			srv.GracefulStop()
 		}
@@ -195,21 +191,17 @@ func main() {
 			grpcEndpoint := fmt.Sprintf("localhost:%s", port)
 			err := hellopbv1.RegisterHelloServiceHandlerFromEndpoint(context.Background(), mux, grpcEndpoint, opts)
 			if err != nil {
-				//log.Fatal().Err(err).Msg("failed to connect to register gRPC Gateway Summary service")
 				Errorf(gologger, "message, %s", "failed to connect to register gRPC Gateway Summary service")
 				os.Exit(1)
 			}
-			//log.Info().Msgf("gRPC Gateway listening on :8081")
 			Infof(gologger, "message :%s", "gRPC Gateway listening on :8081")
-			if err := http.ListenAndServe(":8081", mux); err != nil {
-				//log.Fatal().Err(err).Msg("failed to start gRPC gateway")
+			if err := http.ListenAndServe("0.0.0.0:8081", mux); err != nil {
 				Errorf(gologger, "message, %s", "failed to start gRPC gateway")
 				os.Exit(1)
 			}
 			return nil
 		}
 		interrupt := func(error) {
-			//log.Info().Msgf("gRPC Gateway gracefulStop() started")
 			Infof(gologger, "message :%s", "gRPC Gateway gracefulStop() started")
 			srv.GracefulStop()
 		}

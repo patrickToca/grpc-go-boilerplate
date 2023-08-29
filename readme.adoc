@@ -131,8 +131,8 @@ The [.navy .yellow-background]#buf.gen.yaml# file controls how the buf generate 
 
 . Implement actors with run - DONE
 . Implement command line for gRPC to run grpcui - DONE
+. Use golang log/slog instead of zerolog + config. a wrapping logger - DONE
 
-. Use golang log/slog instead of zerolog + config. a wrapping logger
 . Implement Swagger server with gin
 . See to have Prometheus working
 . Implement config using `type Option func(*Config)` and externalise the options into a cue specification
