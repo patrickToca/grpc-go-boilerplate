@@ -77,7 +77,7 @@ func replaceDev(groups []string, a slog.Attr) slog.Attr {
 
 func replaceProd(groups []string, a slog.Attr) slog.Attr {
 	// Remove the directory from the source's filename.
-	if a.Key == slog.SourceKey {
+	if a.Key == slog.SourceKey && len(groups) == 0 {
 		source := a.Value.Any().(*slog.Source)
 		source.File = filepath.Base(source.File)
 	}
