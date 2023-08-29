@@ -62,38 +62,38 @@ func Errorf(logger *slog.Logger, format string, args ...any) {
 	_ = logger.Handler().Handle(context.Background(), r)
 }
 
+func replaceDev(groups []string, a slog.Attr) slog.Attr {
+	// Remove time.
+	if a.Key == slog.TimeKey && len(groups) == 0 {
+		return slog.Attr{}
+	}
+	// Remove the directory from the source's filename.
+	if a.Key == slog.SourceKey {
+		source := a.Value.Any().(*slog.Source)
+		source.File = filepath.Base(source.File)
+	}
+	return a
+}
+
+func replaceProd(groups []string, a slog.Attr) slog.Attr {
+	// Remove the directory from the source's filename.
+	if a.Key == slog.SourceKey {
+		source := a.Value.Any().(*slog.Source)
+		source.File = filepath.Base(source.File)
+	}
+	return a
+}
+
 func main() {
 	flag.Parse()
-
-	replacedev := func(groups []string, a slog.Attr) slog.Attr {
-		// Remove time.
-		if a.Key == slog.TimeKey && len(groups) == 0 {
-			return slog.Attr{}
-		}
-		// Remove the directory from the source's filename.
-		if a.Key == slog.SourceKey {
-			source := a.Value.Any().(*slog.Source)
-			source.File = filepath.Base(source.File)
-		}
-		return a
-	}
-
-	replaceprod := func(groups []string, a slog.Attr) slog.Attr {
-		// Remove the directory from the source's filename.
-		if a.Key == slog.SourceKey {
-			source := a.Value.Any().(*slog.Source)
-			source.File = filepath.Base(source.File)
-		}
-		return a
-	}
 
 	var logger *slog.Logger
 
 	// Setup logger
 	if *dev {
-		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replacedev}))
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replaceDev}))
 	} else {
-		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replaceprod}))
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replaceProd}))
 	}
 
 	port := defaultPort
@@ -120,7 +120,7 @@ func main() {
 			return nil
 		}
 		interrupt := func(error) {
-			Infof(logger, "message, %s", "shutting down gracefully, press Ctrl+C again to force")
+			Infof(logger, "%s", "shutting down gracefully, press Ctrl+C again to force")
 
 			// The context is used to inform the server it has 5 seconds to finish
 			// the request it is currently handling
@@ -129,7 +129,7 @@ func main() {
 
 			// Handle cleanup here if any
 
-			Infof(logger, "message, %s", "Server exiting")
+			Infof(logger, "%s", "Server exiting")
 		}
 		g.Add(execute, interrupt)
 	} // Control-C watcher
@@ -137,7 +137,7 @@ func main() {
 		execute := func() error {
 			lis, err := net.Listen("tcp", ":"+port)
 			if err != nil {
-				Errorf(logger, "message, %s", "failed to create listener")
+				Errorf(logger, "%s", "failed to create listener")
 				os.Exit(1)
 			}
 
@@ -170,7 +170,7 @@ func main() {
 
 			Infof(logger, "gRPC server listening on :%s", port)
 			if err := srv.Serve(lis); err != nil {
-				Errorf(logger, "message, %s", "failed to start gRPC server")
+				Errorf(logger, "%s", "failed to start gRPC server")
 				os.Exit(1)
 			}
 
@@ -178,7 +178,7 @@ func main() {
 		}
 
 		interrupt := func(error) {
-			Infof(logger, "message :%s", "gRPC server gracefulStop() started")
+			Infof(logger, "%s", "gRPC server gracefulStop() started")
 			srv.GracefulStop()
 		}
 
@@ -191,18 +191,18 @@ func main() {
 			grpcEndpoint := fmt.Sprintf("localhost:%s", port)
 			err := hellopbv1.RegisterHelloServiceHandlerFromEndpoint(context.Background(), mux, grpcEndpoint, opts)
 			if err != nil {
-				Errorf(logger, "message, %s", "failed to connect to register gRPC Gateway Summary service")
+				Errorf(logger, "%s", "failed to connect to register gRPC Gateway Summary service")
 				os.Exit(1)
 			}
-			Infof(logger, "message :%s", "gRPC Gateway listening on :8081")
+			Infof(logger, "%s", "gRPC Gateway listening on :8081")
 			if err := http.ListenAndServe("0.0.0.0:8081", mux); err != nil {
-				Errorf(logger, "message, %s", "failed to start gRPC gateway")
+				Errorf(logger, "%s", "failed to start gRPC gateway")
 				os.Exit(1)
 			}
 			return nil
 		}
 		interrupt := func(error) {
-			Infof(logger, "message :%s", "gRPC Gateway gracefulStop() started")
+			Infof(logger, "%s", "gRPC Gateway gracefulStop() started")
 			srv.GracefulStop()
 		}
 		g.Add(execute, interrupt)
@@ -211,12 +211,12 @@ func main() {
 	// Starting the actors
 	if err := g.Run(); err != nil {
 		//log.Fatal().Err(err).Msg("g.Run()_failed")
-		Errorf(logger, "message, %s", "g.Run()_failed")
+		Errorf(logger, "%s", "g.Run()_failed")
 		os.Exit(1)
 	}
 
 	//log.Info().Msg("Server exiting")
-	Infof(logger, "message :%s", "Server exiting")
+	Infof(logger, "%s", "Server exiting")
 }
 
 func InterceptorLogger(l *slog.Logger) logging.Logger {
@@ -226,12 +226,12 @@ func InterceptorLogger(l *slog.Logger) logging.Logger {
 			//l.Debug().Msg(msg)
 		case logging.LevelInfo:
 			//l.Info().Msg(msg)
-			Infof(l, "message, %s", msg)
+			Infof(l, "%s", msg)
 		case logging.LevelWarn:
 			//l.Warn().Msg(msg)
 		case logging.LevelError:
 			//l.Error().Msg(msg)
-			Errorf(l, "message, %s", msg)
+			Errorf(l, "%s", msg)
 		default:
 			panic(fmt.Sprintf("unknown level %v", lvl))
 		}
