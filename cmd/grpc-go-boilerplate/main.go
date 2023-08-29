@@ -74,6 +74,15 @@ func main() {
 		}
 		interrupt := func(error) {
 			log.Info().Msg("shutting down gracefully, press Ctrl+C again to force")
+
+			// The context is used to inform the server it has 5 seconds to finish
+			// the request it is currently handling
+			_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			// Handle cleanup here if any
+
+			log.Info().Msg("Server exiting")
 		}
 		g.Add(execute, interrupt)
 	} // Control-C watcher
