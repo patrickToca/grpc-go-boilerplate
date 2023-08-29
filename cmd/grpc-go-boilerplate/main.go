@@ -87,13 +87,13 @@ func main() {
 		return a
 	}
 
-	var gologger *slog.Logger
+	var logger *slog.Logger
 
 	// Setup logger
 	if *dev {
-		gologger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replacedev}))
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replacedev}))
 	} else {
-		gologger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replaceprod}))
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replaceprod}))
 	}
 
 	port := defaultPort
@@ -120,7 +120,7 @@ func main() {
 			return nil
 		}
 		interrupt := func(error) {
-			Infof(gologger, "message, %s", "shutting down gracefully, press Ctrl+C again to force")
+			Infof(logger, "message, %s", "shutting down gracefully, press Ctrl+C again to force")
 
 			// The context is used to inform the server it has 5 seconds to finish
 			// the request it is currently handling
@@ -129,7 +129,7 @@ func main() {
 
 			// Handle cleanup here if any
 
-			Infof(gologger, "message, %s", "Server exiting")
+			Infof(logger, "message, %s", "Server exiting")
 		}
 		g.Add(execute, interrupt)
 	} // Control-C watcher
@@ -137,7 +137,7 @@ func main() {
 		execute := func() error {
 			lis, err := net.Listen("tcp", ":"+port)
 			if err != nil {
-				Errorf(gologger, "message, %s", "failed to create listener")
+				Errorf(logger, "message, %s", "failed to create listener")
 				os.Exit(1)
 			}
 
@@ -148,11 +148,11 @@ func main() {
 			// Create gRPC server with slog, prometheus, and panic recovery middleware
 			srv = grpc.NewServer(
 				grpc.ChainUnaryInterceptor(
-					logging.UnaryServerInterceptor(InterceptorLogger(gologger), opts...),
+					logging.UnaryServerInterceptor(InterceptorLogger(logger), opts...),
 					recovery.UnaryServerInterceptor(),
 				),
 				grpc.ChainStreamInterceptor(
-					logging.StreamServerInterceptor(InterceptorLogger(gologger), opts...),
+					logging.StreamServerInterceptor(InterceptorLogger(logger), opts...),
 					recovery.StreamServerInterceptor(),
 				),
 			)
@@ -168,9 +168,9 @@ func main() {
 			grpc_health_v1.RegisterHealthServer(srv, healthServer)
 			reflection.Register(srv)
 
-			Infof(gologger, "gRPC server listening on :%s", port)
+			Infof(logger, "gRPC server listening on :%s", port)
 			if err := srv.Serve(lis); err != nil {
-				Errorf(gologger, "message, %s", "failed to start gRPC server")
+				Errorf(logger, "message, %s", "failed to start gRPC server")
 				os.Exit(1)
 			}
 
@@ -178,7 +178,7 @@ func main() {
 		}
 
 		interrupt := func(error) {
-			Infof(gologger, "message :%s", "gRPC server gracefulStop() started")
+			Infof(logger, "message :%s", "gRPC server gracefulStop() started")
 			srv.GracefulStop()
 		}
 
@@ -191,18 +191,18 @@ func main() {
 			grpcEndpoint := fmt.Sprintf("localhost:%s", port)
 			err := hellopbv1.RegisterHelloServiceHandlerFromEndpoint(context.Background(), mux, grpcEndpoint, opts)
 			if err != nil {
-				Errorf(gologger, "message, %s", "failed to connect to register gRPC Gateway Summary service")
+				Errorf(logger, "message, %s", "failed to connect to register gRPC Gateway Summary service")
 				os.Exit(1)
 			}
-			Infof(gologger, "message :%s", "gRPC Gateway listening on :8081")
+			Infof(logger, "message :%s", "gRPC Gateway listening on :8081")
 			if err := http.ListenAndServe("0.0.0.0:8081", mux); err != nil {
-				Errorf(gologger, "message, %s", "failed to start gRPC gateway")
+				Errorf(logger, "message, %s", "failed to start gRPC gateway")
 				os.Exit(1)
 			}
 			return nil
 		}
 		interrupt := func(error) {
-			Infof(gologger, "message :%s", "gRPC Gateway gracefulStop() started")
+			Infof(logger, "message :%s", "gRPC Gateway gracefulStop() started")
 			srv.GracefulStop()
 		}
 		g.Add(execute, interrupt)
@@ -211,18 +211,16 @@ func main() {
 	// Starting the actors
 	if err := g.Run(); err != nil {
 		//log.Fatal().Err(err).Msg("g.Run()_failed")
-		Errorf(gologger, "message, %s", "g.Run()_failed")
+		Errorf(logger, "message, %s", "g.Run()_failed")
 		os.Exit(1)
 	}
 
 	//log.Info().Msg("Server exiting")
-	Infof(gologger, "message :%s", "Server exiting")
+	Infof(logger, "message :%s", "Server exiting")
 }
 
 func InterceptorLogger(l *slog.Logger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
-		//l := l.With().Fields(fields).Logger()
-
 		switch lvl {
 		case logging.LevelDebug:
 			//l.Debug().Msg(msg)
