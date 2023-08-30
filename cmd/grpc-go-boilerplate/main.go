@@ -38,18 +38,6 @@ var (
 	dev = flag.Bool("dev", false, "Enable development mode")
 )
 
-// Infof is an example of a user-defined logging function that wraps slog.
-// The log record contains the scd source position of the caller of Infof.
-func Infof(logger *slog.Logger, format string, args ...any) {
-	if !logger.Enabled(context.Background(), slog.LevelInfo) {
-		return
-	}
-	var pcs [1]uintptr
-	goruntime.Callers(2, pcs[:]) // skip [Callers, Infof]
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, fmt.Sprintf(format, args...), pcs[0])
-	_ = logger.Handler().Handle(context.Background(), r)
-}
-
 // Errorf is an example of a user-defined logging function that wraps slog.
 // The log record contains the scd source position of the caller of Errorf.
 func Errorf(logger *slog.Logger, format string, args ...any) {
@@ -59,6 +47,18 @@ func Errorf(logger *slog.Logger, format string, args ...any) {
 	var pcs [1]uintptr
 	goruntime.Callers(2, pcs[:]) // skip [Callers, Infof]
 	r := slog.NewRecord(time.Now(), slog.LevelError, fmt.Sprintf(format, args...), pcs[0])
+	_ = logger.Handler().Handle(context.Background(), r)
+}
+
+// Infof is an example of a user-defined logging function that wraps slog.
+// The log record contains the scd source position of the caller of Infof.
+func Infof(logger *slog.Logger, format string, args ...any) {
+	if !logger.Enabled(context.Background(), slog.LevelInfo) {
+		return
+	}
+	var pcs [1]uintptr
+	goruntime.Callers(2, pcs[:]) // skip [Callers, Infof]
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, fmt.Sprintf(format, args...), pcs[0])
 	_ = logger.Handler().Handle(context.Background(), r)
 }
 
@@ -210,12 +210,10 @@ func main() {
 
 	// Starting the actors
 	if err := g.Run(); err != nil {
-		//log.Fatal().Err(err).Msg("g.Run()_failed")
 		Errorf(logger, "%s", "g.Run()_failed")
 		os.Exit(1)
 	}
 
-	//log.Info().Msg("Server exiting")
 	Infof(logger, "%s", "Server exiting")
 }
 
