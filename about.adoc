@@ -54,13 +54,13 @@ The Hello service is quite a simple service which does not take any input, and c
 The compilation of Protobuf is built right into the Go project with buf, so no external dependencies like installing the protoc compiler are needed on the system. Compile the protobuf definitions by either running make generate or go generate ./.... For more information regarding how everything fits together refer to the blog post linked at the end, and the buf documentation.
 
 == Structured Logging & Logging Middleware
-The project leverages zerolog for its logging library. It is my favorite Go logging library and I recommend using it because of its features and performance. When in dev mode the logging is set up to be more human-readable and set to JSON otherwise for production deployments.
+The project leverages slog for its logging library. I recommend using it because of its features and performance. When in dev mode the logging is set up to be more human-readable and set to JSON otherwise for production deployments.
 
 == Panic Recovery Interceptor
 Included is a panic recovery interceptor middleware that turns panics into gRPC errors. The recovery interceptor is a middleware that recovers from panics and logs the panic message–the last thing we want is a panic to bring down our entire server.
 
 == Prometheus Interceptor
-To improve observability and metrics included is the Prometheus interceptor middleware that adds gRPC specific metrics. The metrics of Prometheus are available on the http://0.0.0.0:2112/metrics[:2112/metrics] endpoint when the service is running.
+To improve observability and metrics included is the Prometheus interceptor middleware that adds gRPC specific metrics. The metrics of Prometheus are available on the http://0.0.0.0:2112/metrics[:2112/metrics] endpoint when/if the service is running.
 
 == Health Check Service
 An example health check service is provided for health checks, and readiness + liveliness probes if deploying on Kubernetes. The Hello service health service implementation is very basic, and in a real scenario some more logic needs to be implemented depending on your service.
@@ -72,7 +72,7 @@ buf is a very useful tool when working with Protobuf. It helps with things like 
 Example setup of Prometheus Metrics. Various Prometheus metrics are available on the http://0.0.0.0:2112/metrics[:2112/metrics] endpoint when the service is running.
 
 == Versioned APIs
-It is a good idea to version our APIs to support us going forward with introducing breaking changes. The proto files are structured inside the proto folder as follows: service/vN/file.proto. And the package definition inside the protobuf files: package service.vN;
+It is a good idea to version our APIs to support us going forward with introducing breaking changes. The proto files are structured inside the proto folder as follows: service/vN/file.proto. And the package definition inside the gen/ protobuf files: package service.vN;
 
 == Dev Mode Toggle
 Sometimes it is useful to run your service locally during development. This could mean mocking out certain dependencies, services or what not. This can be done by providing a -dev argument when running the service to allow for branching and handling of such cases. Refer to the main function for an example.

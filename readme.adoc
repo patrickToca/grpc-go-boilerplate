@@ -39,6 +39,19 @@ WARNING: WIP.
 
 A minimal repo containing all the boilerplate for getting started with gRPC in Go.
 
+=== Important
+
+*The Database Modelers* in charge of implementing the Service (the *generated* Server with both REST and gRPC support) giving access to the DataBase, *have 2 essential activities to implement and to maintain*:
+
+. the [.navy .yellow-background]#implementation of the Proto document# (using the Protocol Buffer Interface Definition Language (IDL)) and it validation by stakeholders
+. the [.navy .yellow-background]#implementation of the Service accessing to the Databases on Snowflake or PostgreSQL# (using SQL prepared statements which will execute procedures running in Snowflake)
+.. A third activity is implicit: the Data Modelers will have to develop and maintain the SQL procedure used
+
+In the present boilerplate, the Clients (services) presented are not to be developed or maintained by the Database Modelers, but by the consumers (users) of the data in the databases. They are just indicative and provided as examples of clients (REST or gRPC) to the Server (Database accessor through a managed API).
+
+
+
+
 == Features
 
 * Example gRPC service and implementation
@@ -95,7 +108,7 @@ Getting started buf commands:
 [source,shell]
 ----
 buf --version
-# returns: 1.26.1
+# returns: 1.47.2 on 2024-11-22
 
 # buf is configured with a buf.yaml file, create your own with this command:
 buf mod init
@@ -133,7 +146,6 @@ The [.navy .yellow-background]#buf.gen.yaml# file controls how the buf generate 
 . Implement command line for gRPC to run grpcui - DONE
 . Use golang log/slog instead of zerolog + config. a wrapping logger - DONE
 
-. Implement Swagger server with gin
 . See to have Prometheus working
 . Implement config using `type Option func(*Config)` and externalise the options into a cue specification
 . REST and gRPC in a single service (TLS) see https://earthly.dev/blog/golang-grpc-gateway/[earthly.dev]

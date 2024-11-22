@@ -39,7 +39,7 @@ var (
 )
 
 // Errorf is an example of a user-defined logging function that wraps slog.
-// The log record contains the scd source position of the caller of Errorf.
+// The log record contains the scd source position of the Errorf's caller.
 func Errorf(logger *slog.Logger, format string, args ...any) {
 	if !logger.Enabled(context.Background(), slog.LevelInfo) {
 		return
